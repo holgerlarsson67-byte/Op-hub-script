@@ -144,50 +144,56 @@ SpeedBox.FocusLost:Connect(function()
 	end
 end)
 
---==============================
--- ANTI VOTEKICK (REJOIN ONLY)
---==============================
-local AVFrame = panel(UDim2.new(0,160,0,70), UDim2.new(0.8,0,0.15,0))
-local AVBtn = Instance.new("TextButton", AVFrame)
-AVBtn.Size = UDim2.new(1,-10,1,-10)
-AVBtn.Position = UDim2.new(0,5,0,5)
-AVBtn.TextScaled = true
-AVBtn.Text = "AV OFF"
-AVBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
-AVBtn.TextColor3 = Color3.new(1,1,1)
+--------------------------------------------------
+-- ANTI VOTEKICK (JOBID REJOIN)
+--------------------------------------------------
+local TeleportService = game:GetService("TeleportService")
 
-AVBtn.MouseButton1Click:Connect(function()
-	AntiVotekickEnabled = not AntiVotekickEnabled
-	AVBtn.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
-	AVBtn.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
-end)
+local PlaceId = game.PlaceId
+local JobId = game.JobId
 
-local function rejoin()
+local Rejoining = false
+
+local function rejoinSameServer()
 	if Rejoining then return end
 	Rejoining = true
-	task.wait(0.15)
-	TeleportService:Teleport(PlaceId, LocalPlayer)
+
+	task.wait(0.2)
+
+	pcall(function()
+		TeleportService:TeleportToPlaceInstance(
+			PlaceId,
+			JobId,
+			LocalPlayer
+		)
+	end)
 end
 
 local function onChat(msg)
 	if not AntiVotekickEnabled then return end
-	if msg:lower() == ("/votekick "..LocalPlayer.Name:lower()) then
-		rejoin()
+
+	msg = msg:lower()
+	local myName = LocalPlayer.Name:lower()
+
+	-- STRICT MATCH ONLY
+	if msg == ("/votekick " .. myName) then
+		rejoinSameServer()
 	end
 end
 
-for _,p in ipairs(Players:GetPlayers()) do
-	if p ~= LocalPlayer then
-		p.Chatted:Connect(onChat)
+-- connect existing players
+for _, player in ipairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then
+		player.Chatted:Connect(onChat)
 	end
 end
 
-Players.PlayerAdded:Connect(function(p)
-	if p ~= LocalPlayer then
-		p.Chatted:Connect(onChat)
+-- connect new players
+Players.PlayerAdded:Connect(function(player)
+	if player ~= LocalPlayer then
+		player.Chatted:Connect(onChat)
 	end
 end)
-
 --==============================
 -- TOP BUTTONS
 --==============================

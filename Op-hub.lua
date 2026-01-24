@@ -10,15 +10,12 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Client")
 local SkewerHit = Remotes:WaitForChild("SkewerHit")
 local EatSkewer = Remotes:WaitForChild("EatSkewer")
-local VoteRemote = Remotes:WaitForChild("CastVotekickVote")
 
 -- STATE
-local VotingInProgress = false
 local KillauraEnabled = false
 local SpeedEnabled = false
 local SpeedValue = 16
 local StarsEnabled = false
-local AntiVotekickEnabled = false
 
 --------------------------------------------------
 -- SCREEN GUI
@@ -214,72 +211,12 @@ Players.PlayerRemoving:Connect(refreshPlayers)
 refreshPlayers()
 
 --------------------------------------------------
--- ANTI VOTEKICK (GUI + LOGIC)
---------------------------------------------------
-local AVFrame = panel(UDim2.new(0, 160, 0, 70), UDim2.new(0.8, 0, 0.15, 0))
-local AVBtnUI = Instance.new("TextButton", AVFrame)
-AVBtnUI.Size = UDim2.new(1, -10, 1, -10)
-AVBtnUI.Position = UDim2.new(0, 5, 0, 5)
-AVBtnUI.Text = "AV OFF"
-AVBtnUI.TextScaled = true
-AVBtnUI.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-AVBtnUI.TextColor3 = Color3.new(1, 1, 1)
-
-AVBtnUI.MouseButton1Click:Connect(function()
-    AntiVotekickEnabled = not AntiVotekickEnabled
-    AVBtnUI.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
-    AVBtnUI.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
-end)
-
-local function spamNoVote()
-    if VotingInProgress then return end
-    VotingInProgress = true
-
-    local startTime = os.clock()
-    while os.clock() - startTime < 10 do
-        if not AntiVotekickEnabled then break end
-        VoteRemote:FireServer("No")
-        task.wait(0.15)
-    end
-
-    VotingInProgress = false
-end
-
-local function handleChat(msg)
-    if not AntiVotekickEnabled then return end
-
-    local myName = LocalPlayer.Name:lower()
-    msg = msg:lower()
-
-    if msg:find("/votekick " .. myName) then
-        spamNoVote()
-    end
-end
-
-local function connectPlayer(p)
-    p.Chatted:Connect(handleChat)
-end
-
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer then
-        connectPlayer(p)
-    end
-end
-
-Players.PlayerAdded:Connect(function(p)
-    if p ~= LocalPlayer then
-        connectPlayer(p)
-    end
-end)
-
---------------------------------------------------
 -- TOP BUTTONS
 --------------------------------------------------
 local AuraTop = topButton("AURA",5)
 local SpeedTop = topButton("SPEED",90)
 local StarsTop = topButton("STARS",175)
 local TpTop = topButton("TP",260)
-local AVTop = topButton("AV",345)
 
 AuraTop.MouseButton1Click:Connect(function()
 	AuraFrame.Visible = not AuraFrame.Visible
@@ -295,10 +232,6 @@ end)
 
 TpTop.MouseButton1Click:Connect(function()
 	TpFrame.Visible = not TpFrame.Visible
-end)
-
-AVTop.MouseButton1Click:Connect(function()
-	AVFrame.Visible = not AVFrame.Visible
 end)
 
 --------------------------------------------------
@@ -330,14 +263,23 @@ task.spawn(function()
 	end
 end)
 
--- STARS
+-- STARS (ActiveStars + Chest)
 task.spawn(function()
 	while true do
 		if StarsEnabled then
-			local folder = workspace:FindFirstChild("ActiveStars")
 			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+			-- Teleport to Chest if it exists
+			local chest = workspace:FindFirstChild("Chest")
+			if hrp and chest then
+				hrp.CFrame = chest.CFrame * CFrame.new(0, 4, 0)
+				task.wait(0.1)
+			end
+
+			-- Teleport to ActiveStars
+			local folder = workspace:FindFirstChild("ActiveStars")
 			if folder and hrp then
-				for _,star in ipairs(folder:GetChildren()) do
+				for _, star in ipairs(folder:GetChildren()) do
 					if not StarsEnabled then break end
 					local part =
 						star:IsA("BasePart") and star
@@ -347,11 +289,6 @@ task.spawn(function()
 					end
 					task.wait(0.1)
 				end
-			end
-
-			local chest = workspace:FindFirstChild("Chest")
-			if chest and hrp then
-				hrp.CFrame = chest.CFrame * CFrame.new(0,4,0)
 			end
 		end
 		task.wait(0.1)

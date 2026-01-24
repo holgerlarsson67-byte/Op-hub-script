@@ -2,7 +2,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -11,8 +10,10 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Client")
 local SkewerHit = Remotes:WaitForChild("SkewerHit")
 local EatSkewer = Remotes:WaitForChild("EatSkewer")
+local VoteRemote = Remotes:WaitForChild("CastVotekickVote")
 
 -- STATE
+local VotingInProgress = false
 local KillauraEnabled = false
 local SpeedEnabled = false
 local SpeedValue = 16
@@ -213,13 +214,72 @@ Players.PlayerRemoving:Connect(refreshPlayers)
 refreshPlayers()
 
 --------------------------------------------------
+-- ANTI VOTEKICK (GUI + LOGIC)
+--------------------------------------------------
+local AVFrame = panel(UDim2.new(0, 160, 0, 70), UDim2.new(0.8, 0, 0.15, 0))
+local AVBtnUI = Instance.new("TextButton", AVFrame)
+AVBtnUI.Size = UDim2.new(1, -10, 1, -10)
+AVBtnUI.Position = UDim2.new(0, 5, 0, 5)
+AVBtnUI.Text = "AV OFF"
+AVBtnUI.TextScaled = true
+AVBtnUI.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+AVBtnUI.TextColor3 = Color3.new(1, 1, 1)
+
+AVBtnUI.MouseButton1Click:Connect(function()
+    AntiVotekickEnabled = not AntiVotekickEnabled
+    AVBtnUI.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
+    AVBtnUI.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+end)
+
+local function spamNoVote()
+    if VotingInProgress then return end
+    VotingInProgress = true
+
+    local startTime = os.clock()
+    while os.clock() - startTime < 10 do
+        if not AntiVotekickEnabled then break end
+        VoteRemote:FireServer("No")
+        task.wait(0.15)
+    end
+
+    VotingInProgress = false
+end
+
+local function handleChat(msg)
+    if not AntiVotekickEnabled then return end
+
+    local myName = LocalPlayer.Name:lower()
+    msg = msg:lower()
+
+    if msg:find("/votekick " .. myName) then
+        spamNoVote()
+    end
+end
+
+local function connectPlayer(p)
+    p.Chatted:Connect(handleChat)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        connectPlayer(p)
+    end
+end
+
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LocalPlayer then
+        connectPlayer(p)
+    end
+end)
+
+--------------------------------------------------
 -- TOP BUTTONS
 --------------------------------------------------
 local AuraTop = topButton("AURA",5)
 local SpeedTop = topButton("SPEED",90)
 local StarsTop = topButton("STARS",175)
 local TpTop = topButton("TP",260)
-local AVTop = topButton("AV",345) -- NEW BUTTON
+local AVTop = topButton("AV",345)
 
 AuraTop.MouseButton1Click:Connect(function()
 	AuraFrame.Visible = not AuraFrame.Visible
@@ -237,10 +297,8 @@ TpTop.MouseButton1Click:Connect(function()
 	TpFrame.Visible = not TpFrame.Visible
 end)
 
--- AV (Anti Votekick)
 AVTop.MouseButton1Click:Connect(function()
-	AntiVotekickEnabled = not AntiVotekickEnabled
-	AVTop.Text = AntiVotekickEnabled and "AV ON" or "AV"
+	AVFrame.Visible = not AVFrame.Visible
 end)
 
 --------------------------------------------------
@@ -272,7 +330,7 @@ task.spawn(function()
 	end
 end)
 
--- STARS (ActiveStars + Chest)
+-- STARS
 task.spawn(function()
 	while true do
 		if StarsEnabled then
@@ -291,7 +349,6 @@ task.spawn(function()
 				end
 			end
 
-			-- CHEST
 			local chest = workspace:FindFirstChild("Chest")
 			if chest and hrp then
 				hrp.CFrame = chest.CFrame * CFrame.new(0,4,0)
@@ -300,78 +357,3 @@ task.spawn(function()
 		task.wait(0.1)
 	end
 end)
-
--- =========================
--- ANTI VOTEKICK (GUI)
--- =========================
-
-local AntiVotekickEnabled = false
-
-local AVFrame = panel(UDim2.new(0, 160, 0, 70), UDim2.new(0.8, 0, 0.15, 0))
-local AVBtnUI = Instance.new("TextButton", AVFrame)
-AVBtnUI.Size = UDim2.new(1, -10, 1, -10)
-AVBtnUI.Position = UDim2.new(0, 5, 0, 5)
-AVBtnUI.Text = "AV OFF"
-AVBtnUI.TextScaled = true
-AVBtnUI.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-AVBtnUI.TextColor3 = Color3.new(1, 1, 1)
-
-AVBtnUI.MouseButton1Click:Connect(function()
-    AntiVotekickEnabled = not AntiVotekickEnabled
-    AVBtnUI.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
-    AVBtnUI.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
-end)
-
--- Add TOP BUTTON
-local AVTop = topButton("AV", 345)
-AVTop.MouseButton1Click:Connect(function()
-    AVFrame.Visible = not AVFrame.Visible
-end)
-
--- TELEPORT SERVICE
-local TeleportService = game:GetService("TeleportService")
-local PlaceId = game.PlaceId
-
--- VOTEKICK DETECTION
-local function handleChat(msg)
-    if not AntiVotekickEnabled then return end
-
-    local myName = LocalPlayer.Name:lower()
-    msg = msg:lower()
-
-    if msg:find("/votekick " .. myName) then
-        -- countdown
-        for i = 3, 1, -1 do
-            game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-                Text = "[AV] Votekick detected! Rejoining in " .. i .. " seconds.";
-                Color = Color3.fromRGB(255, 0, 0);
-            })
-            task.wait(1)
-        end
-
-        local jobId = game.JobId
-        if jobId and jobId ~= "" then
-            TeleportService:TeleportToPlaceInstance(PlaceId, jobId, LocalPlayer)
-        end
-    end
-end
-
--- Connect to all players
-local function connectPlayer(p)
-    p.Chatted:Connect(handleChat)
-end
-
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer then
-        connectPlayer(p)
-    end
-end
-
-Players.PlayerAdded:Connect(function(p)
-    if p ~= LocalPlayer then
-        connectPlayer(p)
-    end
-end)
-
-
-

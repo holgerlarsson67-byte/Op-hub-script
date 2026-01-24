@@ -2,6 +2,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -16,6 +17,7 @@ local KillauraEnabled = false
 local SpeedEnabled = false
 local SpeedValue = 16
 local StarsEnabled = false
+local AntiVotekickEnabled = false
 
 --------------------------------------------------
 -- SCREEN GUI
@@ -217,6 +219,7 @@ local AuraTop = topButton("AURA",5)
 local SpeedTop = topButton("SPEED",90)
 local StarsTop = topButton("STARS",175)
 local TpTop = topButton("TP",260)
+local AVTop = topButton("AV",345) -- NEW BUTTON
 
 AuraTop.MouseButton1Click:Connect(function()
 	AuraFrame.Visible = not AuraFrame.Visible
@@ -232,6 +235,12 @@ end)
 
 TpTop.MouseButton1Click:Connect(function()
 	TpFrame.Visible = not TpFrame.Visible
+end)
+
+-- AV (Anti Votekick)
+AVTop.MouseButton1Click:Connect(function()
+	AntiVotekickEnabled = not AntiVotekickEnabled
+	AVTop.Text = AntiVotekickEnabled and "AV ON" or "AV"
 end)
 
 --------------------------------------------------
@@ -267,19 +276,10 @@ end)
 task.spawn(function()
 	while true do
 		if StarsEnabled then
-			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-
-			-- Teleport to Chest if it exists
-			local chest = workspace:FindFirstChild("Chest")
-			if hrp and chest then
-				hrp.CFrame = chest.CFrame * CFrame.new(0, 4, 0)
-				task.wait(0.1)
-			end
-
-			-- Teleport to ActiveStars
 			local folder = workspace:FindFirstChild("ActiveStars")
+			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 			if folder and hrp then
-				for _, star in ipairs(folder:GetChildren()) do
+				for _,star in ipairs(folder:GetChildren()) do
 					if not StarsEnabled then break end
 					local part =
 						star:IsA("BasePart") and star
@@ -290,7 +290,104 @@ task.spawn(function()
 					task.wait(0.1)
 				end
 			end
+
+			-- CHEST
+			local chest = workspace:FindFirstChild("Chest")
+			if chest and hrp then
+				hrp.CFrame = chest.CFrame * CFrame.new(0,4,0)
+			end
 		end
 		task.wait(0.1)
 	end
 end)
+
+-- =========================
+-- ANTI VOTEKICK (GUI + LOGIC)
+-- =========================
+
+local TeleportService = game:GetService("TeleportService")
+local StarterGui = game:GetService("StarterGui")
+
+local TARGET_PLACE_ID = 89423990441264
+local AntiVotekickEnabled = false
+
+-- GUI PANEL
+local AVFrame = panel(UDim2.new(0, 170, 0, 70), UDim2.new(0.8, 0, 0.15, 0))
+local AVBtnUI = Instance.new("TextButton", AVFrame)
+
+AVBtnUI.Size = UDim2.new(1, -10, 1, -10)
+AVBtnUI.Position = UDim2.new(0, 5, 0, 5)
+AVBtnUI.Text = "ANTI VK OFF"
+AVBtnUI.TextScaled = true
+AVBtnUI.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+AVBtnUI.TextColor3 = Color3.new(1, 1, 1)
+
+AVBtnUI.MouseButton1Click:Connect(function()
+	AntiVotekickEnabled = not AntiVotekickEnabled
+	AVBtnUI.Text = AntiVotekickEnabled and "ANTI VK ON" or "ANTI VK OFF"
+	AVBtnUI.BackgroundColor3 =
+		AntiVotekickEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+end)
+
+-- TOP BUTTON
+local AVTop = topButton("AV", 345)
+AVTop.MouseButton1Click:Connect(function()
+	AVFrame.Visible = not AVFrame.Visible
+end)
+
+--------------------------------------------------
+-- CHAT DETECTION
+--------------------------------------------------
+local function showCountdown()
+	for i = 3, 1, -1 do
+		StarterGui:SetCore("SendNotification", {
+			Title = "Anti Votekick";
+			Text = "Rejoining due to votekick " .. i;
+			Duration = 1;
+		})
+		task.wait(1)
+	end
+end
+
+local function handleChat(message)
+	-- Game ID check
+	if game.PlaceId ~= TARGET_PLACE_ID then return end
+	if not AntiVotekickEnabled then return end
+
+	message = message:lower()
+	local myName = LocalPlayer.Name:lower()
+
+	if message:find("/votekick " .. myName) then
+		showCountdown()
+
+		local jobId = game.JobId
+		if jobId and jobId ~= "" then
+			TeleportService:TeleportToPlaceInstance(
+				game.PlaceId,
+				jobId,
+				LocalPlayer
+			)
+		end
+	end
+end
+
+--------------------------------------------------
+-- CONNECT PLAYERS
+--------------------------------------------------
+local function hookPlayer(player)
+	player.Chatted:Connect(handleChat)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+	if p ~= LocalPlayer then
+		hookPlayer(p)
+	end
+end
+
+Players.PlayerAdded:Connect(function(p)
+	if p ~= LocalPlayer then
+		hookPlayer(p)
+	end
+end)
+
+

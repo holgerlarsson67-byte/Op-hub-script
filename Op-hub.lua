@@ -22,12 +22,11 @@ local EatSkewer = Remotes:WaitForChild("EatSkewer")
 local KillauraEnabled = false
 local SpeedEnabled = false
 local SpeedValue = 16
-local StarsEnabled = false
 local AntiVotekickEnabled = false
 local Rejoining = false
 
 --------------------------------------------------
--- GUI SETUP
+-- GUI ROOT
 --------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ControlGui"
@@ -35,7 +34,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
 --------------------------------------------------
--- DRAG FUNCTION
+-- DRAG
 --------------------------------------------------
 local function makeDraggable(frame)
 	frame.Active = true
@@ -51,8 +50,7 @@ local function makeDraggable(frame)
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch) then
+		if dragging then
 			local delta = input.Position - dragStart
 			frame.Position = UDim2.new(
 				startPos.X.Scale,
@@ -72,30 +70,30 @@ end
 -- TOP BAR
 --------------------------------------------------
 local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 32)
-TopBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+TopBar.Size = UDim2.new(1,0,0,32)
+TopBar.BackgroundColor3 = Color3.fromRGB(0,0,0)
 TopBar.Parent = ScreenGui
 
 local function topButton(text, x)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(0, 80, 1, 0)
-	b.Position = UDim2.new(0, x, 0, 0)
+	b.Size = UDim2.new(0,80,1,0)
+	b.Position = UDim2.new(0,x,0,0)
 	b.Text = text
 	b.TextScaled = true
-	b.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	b.TextColor3 = Color3.new(1, 1, 1)
+	b.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	b.TextColor3 = Color3.new(1,1,1)
 	b.Parent = TopBar
 	return b
 end
 
 --------------------------------------------------
--- PANEL FUNCTION
+-- PANEL FACTORY
 --------------------------------------------------
 local function panel(size, pos)
 	local f = Instance.new("Frame")
 	f.Size = size
 	f.Position = pos
-	f.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	f.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	f.Visible = false
 	f.Parent = ScreenGui
 	makeDraggable(f)
@@ -103,7 +101,7 @@ local function panel(size, pos)
 end
 
 --------------------------------------------------
--- KILLAURA PANEL
+-- KILLAURA
 --------------------------------------------------
 local AuraFrame = panel(UDim2.new(0,120,0,70), UDim2.new(0.05,0,0.15,0))
 local AuraBtn = Instance.new("TextButton", AuraFrame)
@@ -121,10 +119,9 @@ AuraBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------
--- SPEED PANEL
+-- SPEED
 --------------------------------------------------
 local SpeedFrame = panel(UDim2.new(0,200,0,100), UDim2.new(0.2,0,0.15,0))
-
 local SpeedBox = Instance.new("TextBox", SpeedFrame)
 SpeedBox.Size = UDim2.new(1,-10,0,30)
 SpeedBox.Position = UDim2.new(0,5,0,5)
@@ -144,8 +141,8 @@ SpeedBtn.TextColor3 = Color3.new(1,1,1)
 SpeedBox.FocusLost:Connect(function()
 	local v = tonumber(SpeedBox.Text)
 	if v then
-		SpeedValue = math.clamp(v, 16, 1000)
-		SpeedBox.Text = tostring(SpeedValue)
+		SpeedValue = math.clamp(v,16,1000)
+		SpeedBox.Text = SpeedValue
 	end
 end)
 
@@ -156,7 +153,47 @@ SpeedBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------
--- ANTI VOTEKICK PANEL
+-- TP PANEL (RESTORED)
+--------------------------------------------------
+local TpFrame = panel(UDim2.new(0,200,0,150), UDim2.new(0.4,0,0.15,0))
+local Scroll = Instance.new("ScrollingFrame", TpFrame)
+Scroll.Size = UDim2.new(1,0,1,0)
+Scroll.CanvasSize = UDim2.new(0,0,0,0)
+Scroll.BackgroundTransparency = 1
+
+local UIList = Instance.new("UIListLayout", Scroll)
+
+local function refreshTP()
+	for _,v in ipairs(Scroll:GetChildren()) do
+		if v:IsA("TextButton") then v:Destroy() end
+	end
+
+	for _,p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			local b = Instance.new("TextButton")
+			b.Size = UDim2.new(1,-10,0,25)
+			b.Text = p.Name
+			b.TextScaled = true
+			b.BackgroundColor3 = Color3.fromRGB(20,20,20)
+			b.TextColor3 = Color3.new(1,1,1)
+			b.Parent = Scroll
+
+			b.MouseButton1Click:Connect(function()
+				if LocalPlayer.Character and p.Character then
+					LocalPlayer.Character.HumanoidRootPart.CFrame =
+						p.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-2)
+				end
+			end)
+		end
+	end
+end
+
+refreshTP()
+Players.PlayerAdded:Connect(refreshTP)
+Players.PlayerRemoving:Connect(refreshTP)
+
+--------------------------------------------------
+-- ANTI VOTEKICK PANEL (FIXED)
 --------------------------------------------------
 local AVFrame = panel(UDim2.new(0,160,0,70), UDim2.new(0.6,0,0.15,0))
 local AVBtn = Instance.new("TextButton", AVFrame)
@@ -174,11 +211,12 @@ AVBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------
--- TOP BUTTONS
+-- TOP BUTTONS (ALL FIXED)
 --------------------------------------------------
-local AuraTop = topButton("AURA", 5)
-local SpeedTop = topButton("SPEED", 90)
-local AVTop = topButton("AV", 175)
+local AuraTop = topButton("AURA",5)
+local SpeedTop = topButton("SPEED",90)
+local TpTop = topButton("TP",175)
+local AVTop = topButton("AV",260)
 
 AuraTop.MouseButton1Click:Connect(function()
 	AuraFrame.Visible = not AuraFrame.Visible
@@ -188,71 +226,35 @@ SpeedTop.MouseButton1Click:Connect(function()
 	SpeedFrame.Visible = not SpeedFrame.Visible
 end)
 
+TpTop.MouseButton1Click:Connect(function()
+	TpFrame.Visible = not TpFrame.Visible
+end)
+
 AVTop.MouseButton1Click:Connect(function()
 	AVFrame.Visible = not AVFrame.Visible
 end)
 
 --------------------------------------------------
--- LOOPS
---------------------------------------------------
-task.spawn(function()
-	while true do
-		if KillauraEnabled then
-			for _, p in ipairs(Players:GetPlayers()) do
-				if p ~= LocalPlayer then
-					SkewerHit:FireServer(p)
-					EatSkewer:FireServer(p)
-				end
-			end
-		end
-		task.wait(0.05)
-	end
-end)
-
-task.spawn(function()
-	while true do
-		if SpeedEnabled and LocalPlayer.Character then
-			local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-			if hum then
-				hum.WalkSpeed = SpeedValue
-			end
-		end
-		task.wait(0.05)
-	end
-end)
-
---------------------------------------------------
--- ANTI VOTEKICK CHAT DETECTION (JOBID REJOIN)
+-- AV CHAT DETECTION (JOBID)
 --------------------------------------------------
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 
-local function rejoinSameServer()
+local function rejoin()
 	if Rejoining then return end
 	Rejoining = true
-	task.wait(0.2)
-
-	pcall(function()
-		TeleportService:TeleportToPlaceInstance(
-			PlaceId,
-			JobId,
-			LocalPlayer
-		)
-	end)
+	task.wait(0.15)
+	TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
 end
 
 local function onChat(msg)
 	if not AntiVotekickEnabled then return end
-
-	msg = msg:lower()
-	local myName = LocalPlayer.Name:lower()
-
-	if msg == ("/votekick " .. myName) then
-		rejoinSameServer()
+	if msg:lower() == "/votekick "..LocalPlayer.Name:lower() then
+		rejoin()
 	end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do
+for _,p in ipairs(Players:GetPlayers()) do
 	if p ~= LocalPlayer then
 		p.Chatted:Connect(onChat)
 	end

@@ -302,92 +302,76 @@ task.spawn(function()
 end)
 
 -- =========================
--- ANTI VOTEKICK (GUI + LOGIC)
+-- ANTI VOTEKICK (GUI)
 -- =========================
 
-local TeleportService = game:GetService("TeleportService")
-local StarterGui = game:GetService("StarterGui")
-
-local TARGET_PLACE_ID = 89423990441264
 local AntiVotekickEnabled = false
 
--- GUI PANEL
-local AVFrame = panel(UDim2.new(0, 170, 0, 70), UDim2.new(0.8, 0, 0.15, 0))
+local AVFrame = panel(UDim2.new(0, 160, 0, 70), UDim2.new(0.8, 0, 0.15, 0))
 local AVBtnUI = Instance.new("TextButton", AVFrame)
-
 AVBtnUI.Size = UDim2.new(1, -10, 1, -10)
 AVBtnUI.Position = UDim2.new(0, 5, 0, 5)
-AVBtnUI.Text = "ANTI VK OFF"
+AVBtnUI.Text = "AV OFF"
 AVBtnUI.TextScaled = true
 AVBtnUI.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 AVBtnUI.TextColor3 = Color3.new(1, 1, 1)
 
 AVBtnUI.MouseButton1Click:Connect(function()
-	AntiVotekickEnabled = not AntiVotekickEnabled
-	AVBtnUI.Text = AntiVotekickEnabled and "ANTI VK ON" or "ANTI VK OFF"
-	AVBtnUI.BackgroundColor3 =
-		AntiVotekickEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+    AntiVotekickEnabled = not AntiVotekickEnabled
+    AVBtnUI.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
+    AVBtnUI.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
 end)
 
--- TOP BUTTON
+-- Add TOP BUTTON
 local AVTop = topButton("AV", 345)
 AVTop.MouseButton1Click:Connect(function()
-	AVFrame.Visible = not AVFrame.Visible
+    AVFrame.Visible = not AVFrame.Visible
 end)
 
---------------------------------------------------
--- CHAT DETECTION
---------------------------------------------------
-local function showCountdown()
-	for i = 3, 1, -1 do
-		StarterGui:SetCore("SendNotification", {
-			Title = "Anti Votekick";
-			Text = "Rejoining due to votekick " .. i;
-			Duration = 1;
-		})
-		task.wait(1)
-	end
+-- TELEPORT SERVICE
+local TeleportService = game:GetService("TeleportService")
+local PlaceId = game.PlaceId
+
+-- VOTEKICK DETECTION
+local function handleChat(msg)
+    if not AntiVotekickEnabled then return end
+
+    local myName = LocalPlayer.Name:lower()
+    msg = msg:lower()
+
+    if msg:find("/votekick " .. myName) then
+        -- countdown
+        for i = 3, 1, -1 do
+            game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+                Text = "[AV] Votekick detected! Rejoining in " .. i .. " seconds.";
+                Color = Color3.fromRGB(255, 0, 0);
+            })
+            task.wait(1)
+        end
+
+        local jobId = game.JobId
+        if jobId and jobId ~= "" then
+            TeleportService:TeleportToPlaceInstance(PlaceId, jobId, LocalPlayer)
+        end
+    end
 end
 
-local function handleChat(message)
-	-- Game ID check
-	if game.PlaceId ~= TARGET_PLACE_ID then return end
-	if not AntiVotekickEnabled then return end
-
-	message = message:lower()
-	local myName = LocalPlayer.Name:lower()
-
-	if message:find("/votekick " .. myName) then
-		showCountdown()
-
-		local jobId = game.JobId
-		if jobId and jobId ~= "" then
-			TeleportService:TeleportToPlaceInstance(
-				game.PlaceId,
-				jobId,
-				LocalPlayer
-			)
-		end
-	end
-end
-
---------------------------------------------------
--- CONNECT PLAYERS
---------------------------------------------------
-local function hookPlayer(player)
-	player.Chatted:Connect(handleChat)
+-- Connect to all players
+local function connectPlayer(p)
+    p.Chatted:Connect(handleChat)
 end
 
 for _, p in ipairs(Players:GetPlayers()) do
-	if p ~= LocalPlayer then
-		hookPlayer(p)
-	end
+    if p ~= LocalPlayer then
+        connectPlayer(p)
+    end
 end
 
 Players.PlayerAdded:Connect(function(p)
-	if p ~= LocalPlayer then
-		hookPlayer(p)
-	end
+    if p ~= LocalPlayer then
+        connectPlayer(p)
+    end
 end)
+
 
 

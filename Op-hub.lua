@@ -13,6 +13,7 @@ local SkewerHit = Remotes:WaitForChild("SkewerHit")
 local EatSkewer = Remotes:WaitForChild("EatSkewer")
 
 -- STATE
+local TpAllEnabled = false
 local KillauraEnabled = false
 local SpeedEnabled = false
 local SpeedValue = 16
@@ -295,6 +296,24 @@ for _,p in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(hookChat)
 
+-- TP ALL
+local TpAllFrame = panel(UDim2.new(0,160,0,70), UDim2.new(0.65,0,0.35,0))
+
+local TpAllBtn = Instance.new("TextButton", TpAllFrame)
+TpAllBtn.Size = UDim2.new(1,-10,1,-10)
+TpAllBtn.Position = UDim2.new(0,5,0,5)
+TpAllBtn.Text = "TP ALL OFF"
+TpAllBtn.TextScaled = true
+TpAllBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+TpAllBtn.TextColor3 = Color3.new(1,1,1)
+
+TpAllBtn.MouseButton1Click:Connect(function()
+	TpAllEnabled = not TpAllEnabled
+	TpAllBtn.Text = TpAllEnabled and "TP ALL ON" or "TP ALL OFF"
+	TpAllBtn.BackgroundColor3 =
+		TpAllEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+end)
+
 --------------------------------------------------
 -- TOP BUTTONS
 --------------------------------------------------
@@ -303,6 +322,12 @@ local SpeedTop = topButton("SPEED",90)
 local StarsTop = topButton("STARS",175)
 local AVTop = topButton("AV",345)
 local TpTop = topButton("TP",260)
+local TpAllTop = topButton("TPALL", 430)
+
+TpAllTop.MouseButton1Click:Connect(function()
+	TpAllFrame.Visible = not TpAllFrame.Visible
+end)
+
 
 TpTop.MouseButton1Click:Connect(function()
 	TpFrame.Visible = not TpFrame.Visible
@@ -364,5 +389,30 @@ task.spawn(function()
 			end
 		end
 		task.wait(0.1)
+	end
+end)
+
+-- TP ALL LOOP
+task.spawn(function()
+	while true do
+		if TpAllEnabled then
+			local myChar = LocalPlayer.Character
+			local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+			if myHRP then
+				for _, player in ipairs(Players:GetPlayers()) do
+					if player ~= LocalPlayer then
+						local char = player.Character
+						local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+						if hrp then
+							myHRP.CFrame = hrp.CFrame * CFrame.new(0,0,-2)
+							task.wait(0.1)
+						end
+					end
+				end
+			end
+		end
+		task.wait(0.05)
 	end
 end)

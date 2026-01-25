@@ -2,6 +2,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -10,15 +11,22 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Client")
 local SkewerHit = Remotes:WaitForChild("SkewerHit")
 local EatSkewer = Remotes:WaitForChild("EatSkewer")
-local VoteRemote = Remotes:WaitForChild("CastVotekickVote")
 
 -- STATE
-local VotingInProgress = false
 local KillauraEnabled = false
 local SpeedEnabled = false
 local SpeedValue = 16
 local StarsEnabled = false
 local AntiVotekickEnabled = false
+local Rejoining = false
+
+-- KILLAURA BLACKLIST
+local KillauraBlacklist = {
+	["pyttecan11"] = true,
+	["ezwin1411"] = true,
+	["vikingerik14"] = true,
+	["ggogogogo18"] = true
+}
 
 --------------------------------------------------
 -- SCREEN GUI
@@ -96,23 +104,27 @@ local function panel(size, pos)
 	return f
 end
 
+--------------------------------------------------
 -- KILLAURA
+--------------------------------------------------
 local AuraFrame = panel(UDim2.new(0,120,0,70), UDim2.new(0.05,0,0.15,0))
-local AuraBtnUI = Instance.new("TextButton", AuraFrame)
-AuraBtnUI.Size = UDim2.new(1,-10,1,-10)
-AuraBtnUI.Position = UDim2.new(0,5,0,5)
-AuraBtnUI.Text = "AURA OFF"
-AuraBtnUI.TextScaled = true
-AuraBtnUI.BackgroundColor3 = Color3.fromRGB(170,0,0)
-AuraBtnUI.TextColor3 = Color3.new(1,1,1)
+local AuraBtn = Instance.new("TextButton", AuraFrame)
+AuraBtn.Size = UDim2.new(1,-10,1,-10)
+AuraBtn.Position = UDim2.new(0,5,0,5)
+AuraBtn.Text = "AURA OFF"
+AuraBtn.TextScaled = true
+AuraBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+AuraBtn.TextColor3 = Color3.new(1,1,1)
 
-AuraBtnUI.MouseButton1Click:Connect(function()
+AuraBtn.MouseButton1Click:Connect(function()
 	KillauraEnabled = not KillauraEnabled
-	AuraBtnUI.Text = KillauraEnabled and "AURA ON" or "AURA OFF"
-	AuraBtnUI.BackgroundColor3 = KillauraEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	AuraBtn.Text = KillauraEnabled and "AURA ON" or "AURA OFF"
+	AuraBtn.BackgroundColor3 = KillauraEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
 end)
 
+--------------------------------------------------
 -- SPEED
+--------------------------------------------------
 local SpeedFrame = panel(UDim2.new(0,200,0,100), UDim2.new(0.2,0,0.15,0))
 local SpeedBox = Instance.new("TextBox", SpeedFrame)
 SpeedBox.Size = UDim2.new(1,-10,0,30)
@@ -122,13 +134,13 @@ SpeedBox.TextScaled = true
 SpeedBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
 SpeedBox.TextColor3 = Color3.new(1,1,1)
 
-local SpeedBtnUI = Instance.new("TextButton", SpeedFrame)
-SpeedBtnUI.Size = UDim2.new(1,-10,0,30)
-SpeedBtnUI.Position = UDim2.new(0,5,0,45)
-SpeedBtnUI.Text = "SPEED OFF"
-SpeedBtnUI.TextScaled = true
-SpeedBtnUI.BackgroundColor3 = Color3.fromRGB(170,0,0)
-SpeedBtnUI.TextColor3 = Color3.new(1,1,1)
+local SpeedBtn = Instance.new("TextButton", SpeedFrame)
+SpeedBtn.Size = UDim2.new(1,-10,0,30)
+SpeedBtn.Position = UDim2.new(0,5,0,45)
+SpeedBtn.Text = "SPEED OFF"
+SpeedBtn.TextScaled = true
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+SpeedBtn.TextColor3 = Color3.new(1,1,1)
 
 SpeedBox.FocusLost:Connect(function()
 	local v = tonumber(SpeedBox.Text)
@@ -138,139 +150,150 @@ SpeedBox.FocusLost:Connect(function()
 	end
 end)
 
-SpeedBtnUI.MouseButton1Click:Connect(function()
+local function touchingSpawn()
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+
+	for _, part in ipairs(workspace:GetPartsInPart(hrp)) do
+		if part.Name == "SpawnArea" then
+			return true
+		end
+	end
+	return false
+end
+
+SpeedBtn.MouseButton1Click:Connect(function()
 	SpeedEnabled = not SpeedEnabled
-	SpeedBtnUI.Text = SpeedEnabled and "SPEED ON" or "SPEED OFF"
-	SpeedBtnUI.BackgroundColor3 = SpeedEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+
+	if SpeedEnabled then
+		SpeedBtn.Text = "SPEED ON"
+		SpeedBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
+	else
+		SpeedBtn.Text = "SPEED OFF"
+		SpeedBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+
+		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+		if hum then
+			hum.WalkSpeed = touchingSpawn() and 45 or 16
+		end
+	end
 end)
 
+--------------------------------------------------
 -- STARS
+--------------------------------------------------
 local StarsFrame = panel(UDim2.new(0,120,0,60), UDim2.new(0.4,0,0.15,0))
-local StarsBtnUI = Instance.new("TextButton", StarsFrame)
-StarsBtnUI.Size = UDim2.new(1,-10,1,-10)
-StarsBtnUI.Position = UDim2.new(0,5,0,5)
-StarsBtnUI.Text = "STARS OFF"
-StarsBtnUI.TextScaled = true
-StarsBtnUI.BackgroundColor3 = Color3.fromRGB(170,0,0)
-StarsBtnUI.TextColor3 = Color3.new(1,1,1)
+local StarsBtn = Instance.new("TextButton", StarsFrame)
+StarsBtn.Size = UDim2.new(1,-10,1,-10)
+StarsBtn.Position = UDim2.new(0,5,0,5)
+StarsBtn.Text = "STARS OFF"
+StarsBtn.TextScaled = true
+StarsBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+StarsBtn.TextColor3 = Color3.new(1,1,1)
 
-StarsBtnUI.MouseButton1Click:Connect(function()
+StarsBtn.MouseButton1Click:Connect(function()
 	StarsEnabled = not StarsEnabled
-	StarsBtnUI.Text = StarsEnabled and "STARS ON" or "STARS OFF"
-	StarsBtnUI.BackgroundColor3 = StarsEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	StarsBtn.Text = StarsEnabled and "STARS ON" or "STARS OFF"
+	StarsBtn.BackgroundColor3 = StarsEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
 end)
 
+--------------------------------------------------
 -- TP
-local TpFrame = panel(UDim2.new(0,200,0,150), UDim2.new(0.6,0,0.15,0))
+--------------------------------------------------
+local TpFrame = panel(UDim2.new(0,200,0,180), UDim2.new(0.6,0,0.15,0))
+
 local TpTitle = Instance.new("TextLabel", TpFrame)
 TpTitle.Size = UDim2.new(1,0,0,25)
-TpTitle.Position = UDim2.new(0,0,0,0)
 TpTitle.Text = "TP"
 TpTitle.TextScaled = true
 TpTitle.BackgroundTransparency = 1
 TpTitle.TextColor3 = Color3.new(1,1,1)
 
-local Scroll = Instance.new("ScrollingFrame", TpFrame)
-Scroll.Position = UDim2.new(0,0,0,25)
-Scroll.Size = UDim2.new(1,0,1,-25)
-Scroll.BackgroundTransparency = 1
-Scroll.ScrollBarImageTransparency = 0
+local TpScroll = Instance.new("ScrollingFrame", TpFrame)
+TpScroll.Position = UDim2.new(0,0,0,25)
+TpScroll.Size = UDim2.new(1,0,1,-25)
+TpScroll.CanvasSize = UDim2.new(0,0,0,0)
+TpScroll.ScrollBarImageTransparency = 0
+TpScroll.BackgroundTransparency = 1
+TpScroll.ScrollingDirection = Enum.ScrollingDirection.Y
 
-local Layout = Instance.new("UIListLayout", Scroll)
-Layout.Padding = UDim.new(0,5)
+local TpLayout = Instance.new("UIListLayout", TpScroll)
+TpLayout.Padding = UDim.new(0,5)
 
-local function refreshPlayers()
-	for _, v in ipairs(Scroll:GetChildren()) do
-		if v:IsA("TextButton") then
-			v:Destroy()
-		end
+local function updateTpCanvas()
+	TpScroll.CanvasSize = UDim2.new(0,0,0,TpLayout.AbsoluteContentSize.Y + 10)
+end
+TpLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateTpCanvas)
+
+local function refreshTP()
+	for _,v in ipairs(TpScroll:GetChildren()) do
+		if v:IsA("TextButton") then v:Destroy() end
 	end
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer then
-			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1,-10,0,25)
-			btn.Position = UDim2.new(0,5,0,0)
-			btn.Text = player.Name
-			btn.TextScaled = true
-			btn.BackgroundColor3 = Color3.fromRGB(20,20,20)
-			btn.TextColor3 = Color3.new(1,1,1)
-			btn.Parent = Scroll
+	for _,p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			local b = Instance.new("TextButton")
+			b.Size = UDim2.new(1,-10,0,28)
+			b.Text = p.Name
+			b.TextScaled = true
+			b.BackgroundColor3 = Color3.fromRGB(20,20,20)
+			b.TextColor3 = Color3.new(1,1,1)
+			b.Parent = TpScroll
 
-			btn.MouseButton1Click:Connect(function()
-				if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-					if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-						LocalPlayer.Character.HumanoidRootPart.CFrame =
-							player.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-2)
-					end
+			b.MouseButton1Click:Connect(function()
+				local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+				local theirHRP = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+				if myHRP and theirHRP then
+					myHRP.CFrame = theirHRP.CFrame * CFrame.new(0,0,-2)
 				end
 			end)
 		end
 	end
+
+	updateTpCanvas()
 end
 
-Players.PlayerAdded:Connect(refreshPlayers)
-Players.PlayerRemoving:Connect(refreshPlayers)
-refreshPlayers()
+Players.PlayerAdded:Connect(refreshTP)
+Players.PlayerRemoving:Connect(refreshTP)
+refreshTP()
 
 --------------------------------------------------
--- ANTI VOTEKICK (GUI + LOGIC)
+-- ANTI VOTEKICK
 --------------------------------------------------
-local AVFrame = panel(UDim2.new(0, 160, 0, 70), UDim2.new(0.8, 0, 0.15, 0))
-local AVBtnUI = Instance.new("TextButton", AVFrame)
-AVBtnUI.Size = UDim2.new(1, -10, 1, -10)
-AVBtnUI.Position = UDim2.new(0, 5, 0, 5)
-AVBtnUI.Text = "AV OFF"
-AVBtnUI.TextScaled = true
-AVBtnUI.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-AVBtnUI.TextColor3 = Color3.new(1, 1, 1)
+local AVFrame = panel(UDim2.new(0,160,0,70), UDim2.new(0.6,0,0.15,0))
+local AVBtn = Instance.new("TextButton", AVFrame)
+AVBtn.Size = UDim2.new(1,-10,1,-10)
+AVBtn.Position = UDim2.new(0,5,0,5)
+AVBtn.Text = "AV OFF"
+AVBtn.TextScaled = true
+AVBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+AVBtn.TextColor3 = Color3.new(1,1,1)
 
-AVBtnUI.MouseButton1Click:Connect(function()
-    AntiVotekickEnabled = not AntiVotekickEnabled
-    AVBtnUI.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
-    AVBtnUI.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+AVBtn.MouseButton1Click:Connect(function()
+	AntiVotekickEnabled = not AntiVotekickEnabled
+	AVBtn.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
+	AVBtn.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
 end)
 
-local function spamNoVote()
-    if VotingInProgress then return end
-    VotingInProgress = true
-
-    local startTime = os.clock()
-    while os.clock() - startTime < 10 do
-        if not AntiVotekickEnabled then break end
-        VoteRemote:FireServer("No")
-        task.wait(0.15)
-    end
-
-    VotingInProgress = false
+local function rejoinServer()
+	if Rejoining then return end
+	Rejoining = true
+	TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end
 
-local function handleChat(msg)
-    if not AntiVotekickEnabled then return end
-
-    local myName = LocalPlayer.Name:lower()
-    msg = msg:lower()
-
-    if msg:find("/votekick " .. myName) then
-        spamNoVote()
-    end
+local function hookChat(p)
+	p.Chatted:Connect(function(msg)
+		if AntiVotekickEnabled and msg:lower():find("/votekick "..LocalPlayer.Name:lower()) then
+			rejoinServer()
+		end
+	end)
 end
 
-local function connectPlayer(p)
-    p.Chatted:Connect(handleChat)
+for _,p in ipairs(Players:GetPlayers()) do
+	if p ~= LocalPlayer then hookChat(p) end
 end
-
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer then
-        connectPlayer(p)
-    end
-end
-
-Players.PlayerAdded:Connect(function(p)
-    if p ~= LocalPlayer then
-        connectPlayer(p)
-    end
-end)
+Players.PlayerAdded:Connect(hookChat)
 
 --------------------------------------------------
 -- TOP BUTTONS
@@ -278,38 +301,29 @@ end)
 local AuraTop = topButton("AURA",5)
 local SpeedTop = topButton("SPEED",90)
 local StarsTop = topButton("STARS",175)
-local TpTop = topButton("TP",260)
 local AVTop = topButton("AV",345)
-
-AuraTop.MouseButton1Click:Connect(function()
-	AuraFrame.Visible = not AuraFrame.Visible
-end)
-
-SpeedTop.MouseButton1Click:Connect(function()
-	SpeedFrame.Visible = not SpeedFrame.Visible
-end)
-
-StarsTop.MouseButton1Click:Connect(function()
-	StarsFrame.Visible = not StarsFrame.Visible
-end)
+local TpTop = topButton("TP",260)
 
 TpTop.MouseButton1Click:Connect(function()
 	TpFrame.Visible = not TpFrame.Visible
 end)
 
-AVTop.MouseButton1Click:Connect(function()
-	AVFrame.Visible = not AVFrame.Visible
-end)
+AuraTop.MouseButton1Click:Connect(function() AuraFrame.Visible = not AuraFrame.Visible end)
+
+SpeedTop.MouseButton1Click:Connect(function() SpeedFrame.Visible = not SpeedFrame.Visible end)
+
+StarsTop.MouseButton1Click:Connect(function() StarsFrame.Visible = not StarsFrame.Visible end)
+
+AVTop.MouseButton1Click:Connect(function() AVFrame.Visible = not AVFrame.Visible end)
 
 --------------------------------------------------
 -- LOOPS
 --------------------------------------------------
--- KILLAURA
 task.spawn(function()
 	while true do
 		if KillauraEnabled then
 			for _,p in ipairs(Players:GetPlayers()) do
-				if p ~= LocalPlayer then
+				if p ~= LocalPlayer and not KillauraBlacklist[p.Name:lower()] then
 					SkewerHit:FireServer(p)
 					EatSkewer:FireServer(p)
 				end
@@ -319,7 +333,6 @@ task.spawn(function()
 	end
 end)
 
--- SPEED
 task.spawn(function()
 	while true do
 		if SpeedEnabled and LocalPlayer.Character then
@@ -330,18 +343,14 @@ task.spawn(function()
 	end
 end)
 
--- STARS
 task.spawn(function()
 	while true do
 		if StarsEnabled then
-			local folder = workspace:FindFirstChild("ActiveStars")
 			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-			if folder and hrp then
+			local folder = workspace:FindFirstChild("ActiveStars")
+			if hrp and folder then
 				for _,star in ipairs(folder:GetChildren()) do
-					if not StarsEnabled then break end
-					local part =
-						star:IsA("BasePart") and star
-						or star:IsA("Model") and (star.PrimaryPart or star:FindFirstChildWhichIsA("BasePart"))
+					local part = star:IsA("BasePart") and star or star:FindFirstChildWhichIsA("BasePart")
 					if part then
 						hrp.CFrame = part.CFrame * CFrame.new(0,4,0)
 					end

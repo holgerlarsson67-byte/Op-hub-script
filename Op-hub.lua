@@ -491,6 +491,22 @@ if SpeedEnabled then
 	hum.WalkSpeed = SpeedValue
 end
 
+-- AUTO RESET ONCE AFTER FULL LOAD
+task.spawn(function()
+	-- wait for player + first character
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+
+	-- ensure everything is fully loaded
+	task.wait(2)
+
+	-- prevent running more than once (per execution)
+	if getgenv()._DidAutoReset then return end
+	getgenv()._DidAutoReset = true
+
+	-- reset character
+	hum.Health = 0
+end)
 
 -- TP ALL LOOP
 task.spawn(function()

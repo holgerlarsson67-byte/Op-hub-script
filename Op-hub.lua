@@ -17,6 +17,31 @@ if not isfolder(CONFIG_FOLDER) then
 	makefolder(CONFIG_FOLDER)
 end
 
+-- 👇 PUT AUTOEXEC CREATION CODE HERE
+if not isfolder("AutoExec") then
+	makefolder("AutoExec")
+end
+
+if not isfile("AutoExec/my_autoexec.lua") then
+	writefile("AutoExec/my_autoexec.lua", [[
+local HttpService = game:GetService("HttpService")
+
+local CONFIG_FILE = "MyScript/config.json"
+if not isfile(CONFIG_FILE) then return end
+
+local ok, cfg = pcall(function()
+	return HttpService:JSONDecode(readfile(CONFIG_FILE))
+end)
+if not ok then return end
+
+-- only run if config allows it
+if cfg.AutoExecute ~= true then return end
+
+-- load main script
+loadstring(game:HttpGet("YOUR_SCRIPT_URL_HERE"))()
+]])
+end
+
 -- REMOTES
 local Remotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Client")
 local SkewerHit = Remotes:WaitForChild("SkewerHit")
@@ -30,7 +55,7 @@ local SpeedValue = 16
 local StarsEnabled = false
 local AntiVotekickEnabled = false
 local Rejoining = false
-
+local AutoExecute = true
 -- CONFIG ADD
 local function saveConfig()
 	local data = {
@@ -325,37 +350,26 @@ end)
 local function rejoinServer()
 	if Rejoining then return end
 	Rejoining = true
+
+	if not isfolder("AutoExec") then
+		makefolder("AutoExec")
+	end
+
+	writefile("AutoExec/enable.lua", "-- AutoExec enabled by AntiVoteKick")
+
 	TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end
 
-if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-	TextChatService.OnIncomingMessage = function(message)
-		if not AntiVotekickEnabled then
-			return
-		end
 
-		if not message.Text then
-			return
-		end
 
-		local text = message.Text:lower()
-		local myName = LocalPlayer.Name:lower()
-
-		-- strip tags / symbols
-		text = text:gsub("[^%a%s]", "")
-
-		if text:find("votekick") and text:find(myName) then
-			if not isfolder("AutoExec") then
-				makefolder("AutoExec")
-			end
-
-			writefile("AutoExec/enable.lua", "-- enabled by AntiVoteKick")
+local function hookChat(p)
+	p.Chatted:Connect(function(msg)
+		if AntiVotekickEnabled and msg:lower():find("/votekick "..LocalPlayer.Name:lower()) then
 			rejoinServer()
 		end
-	end
+	end)
 end
 
-	
 	
 
 
@@ -437,25 +451,25 @@ end)
 
 task.spawn(function()
 	while true do
-		if StarsEnabled then
-			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-			local folder = workspace:FindFirstChild("ActiveStars")
-			if hrp and folder then
-				for _,star in ipairs(folder:GetChildren()) do
-					local part = star:IsA("BasePart") and star or star:FindFirstChildWhichIsA("BasePart")
-					if part then
-						hrp.CFrame = part.CFrame * CFrame.new(0,4,0)
+		if TpAllEnabled then
+			local myChar = LocalPlayer.Character
+			local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+			if myHRP then
+				for _, player in ipairs(Players:GetPlayers()) do
+					if player ~= LocalPlayer then
+						local char = player.Character
+						local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+						if hrp then
+							myHRP.CFrame = hrp.CFrame * CFrame.new(0,0,-2)
+							task.wait(0.1)
+						end
 					end
-					task.wait(0.1)
 				end
 			end
-
-			local chest = workspace:FindFirstChild("Chest")
-			if chest and hrp then
-				hrp.CFrame = chest.CFrame * CFrame.new(0,4,0)
-			end
 		end
-		task.wait(0.1)
+		task.wait(0.05)
 	end
 end)
 
@@ -480,9 +494,12 @@ end
 
 loadConfig()
 -- ALWAYS disable autoexec on script load
-if isfile("AutoExec/enable.lua") then
+if Rejoining and isfile("AutoExec/enable.lua") then
 	delfile("AutoExec/enable.lua")
 end
+
+TpAllEnabled = false
+
 
 refreshUI()
 if SpeedEnabled then
@@ -507,6 +524,9 @@ task.spawn(function()
 	-- reset character
 	hum.Health = 0
 end)
+
+AutoExecute = false
+saveConfig()
 
 -- TP ALL LOOP
 task.spawn(function()

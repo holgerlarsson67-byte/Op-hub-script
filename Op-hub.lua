@@ -495,7 +495,7 @@ end
 task.spawn(function()
 	-- wait for player + first character
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-	local hum = char:WaitForChild("Humanoid")
+	local hum = LocalPlayer.Character:WaitForChild("Humanoid")
 
 	-- ensure everything is fully loaded
 	task.wait(2)

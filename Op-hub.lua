@@ -1,11 +1,46 @@
--- SERVICES
+-- SERVICES (FIXED ORDER)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
+local TextChatService = game:GetService("TextChatService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- CONFIG ADD
+local HttpService = game:GetService("HttpService")
+local CONFIG_FOLDER = "MyScript"
+local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
+
+if not isfolder(CONFIG_FOLDER) then
+	makefolder(CONFIG_FOLDER)
+end
+
+-- 👇 PUT AUTOEXEC CREATION CODE HERE
+if not isfolder("AutoExec") then
+	makefolder("AutoExec")
+end
+
+if not isfile("AutoExec/my_autoexec.lua") then
+	writefile("AutoExec/my_autoexec.lua", [[
+local HttpService = game:GetService("HttpService")
+
+local CONFIG_FILE = "MyScript/config.json"
+if not isfile(CONFIG_FILE) then return end
+
+local ok, cfg = pcall(function()
+	return HttpService:JSONDecode(readfile(CONFIG_FILE))
+end)
+if not ok then return end
+
+-- only run if config allows it
+if cfg.AutoExecute ~= true then return end
+
+-- load main script
+loadstring(game:HttpGet("YOUR_SCRIPT_URL_HERE"))()
+]])
+end
 
 -- REMOTES
 local Remotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Client")
@@ -20,10 +55,43 @@ local SpeedValue = 16
 local StarsEnabled = false
 local AntiVotekickEnabled = false
 local Rejoining = false
+local AutoExecute = true
+-- CONFIG ADD
+local function saveConfig()
+	local data = {
+		KillauraEnabled = KillauraEnabled,
+		SpeedEnabled = SpeedEnabled,
+		SpeedValue = SpeedValue,
+		StarsEnabled = StarsEnabled,
+		AntiVotekickEnabled = AntiVotekickEnabled,
+		AutoExecute = AutoExecute,
+		TpAllEnabled = TpAllEnabled
+	}
+
+	writefile(CONFIG_FILE, HttpService:JSONEncode(data))
+end
+
+local function loadConfig()
+	if not isfile(CONFIG_FILE) then return end
+
+	local success, data = pcall(function()
+		return HttpService:JSONDecode(readfile(CONFIG_FILE))
+	end)
+	if not success then return end
+
+	KillauraEnabled = data.KillauraEnabled or false
+	SpeedEnabled = data.SpeedEnabled or false
+	SpeedValue = data.SpeedValue or 16
+	StarsEnabled = data.StarsEnabled or false
+	AntiVotekickEnabled = data.AntiVotekickEnabled or false
+	TpAllEnabled = data.TpAllEnabled or false
+end
 
 -- KILLAURA BLACKLIST
 local KillauraBlacklist = {
 	["pyttecan11"] = true,
+	["ezwin1411"] = true,
+	["vikingerik14"] = true,
 	["ggogogogo18"] = true
 }
 
@@ -119,7 +187,9 @@ AuraBtn.MouseButton1Click:Connect(function()
 	KillauraEnabled = not KillauraEnabled
 	AuraBtn.Text = KillauraEnabled and "AURA ON" or "AURA OFF"
 	AuraBtn.BackgroundColor3 = KillauraEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	saveConfig()
 end)
+
 
 --------------------------------------------------
 -- SPEED
@@ -146,8 +216,10 @@ SpeedBox.FocusLost:Connect(function()
 	if v then
 		SpeedValue = math.clamp(v,16,1000)
 		SpeedBox.Text = tostring(SpeedValue)
+		saveConfig()
 	end
 end)
+
 
 local function touchingSpawn()
 	local char = LocalPlayer.Character
@@ -164,20 +236,18 @@ end
 
 SpeedBtn.MouseButton1Click:Connect(function()
 	SpeedEnabled = not SpeedEnabled
+	SpeedBtn.Text = SpeedEnabled and "SPEED ON" or "SPEED OFF"
+	SpeedBtn.BackgroundColor3 = SpeedEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	saveConfig()
 
-	if SpeedEnabled then
-		SpeedBtn.Text = "SPEED ON"
-		SpeedBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
-	else
-		SpeedBtn.Text = "SPEED OFF"
-		SpeedBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
-
+	if not SpeedEnabled then
 		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
 		if hum then
 			hum.WalkSpeed = touchingSpawn() and 45 or 16
 		end
 	end
 end)
+
 
 --------------------------------------------------
 -- STARS
@@ -195,6 +265,7 @@ StarsBtn.MouseButton1Click:Connect(function()
 	StarsEnabled = not StarsEnabled
 	StarsBtn.Text = StarsEnabled and "STARS ON" or "STARS OFF"
 	StarsBtn.BackgroundColor3 = StarsEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	saveConfig()
 end)
 
 --------------------------------------------------
@@ -273,6 +344,7 @@ AVBtn.MouseButton1Click:Connect(function()
 	AntiVotekickEnabled = not AntiVotekickEnabled
 	AVBtn.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
 	AVBtn.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	saveconfig()
 end)
 
 local function rejoinServer()
@@ -294,6 +366,9 @@ for _,p in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(hookChat)
 
+
+
+
 -- TP ALL
 local TpAllFrame = panel(UDim2.new(0,160,0,70), UDim2.new(0.65,0,0.35,0))
 
@@ -310,7 +385,9 @@ TpAllBtn.MouseButton1Click:Connect(function()
 	TpAllBtn.Text = TpAllEnabled and "TP ALL ON" or "TP ALL OFF"
 	TpAllBtn.BackgroundColor3 =
 		TpAllEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	saveConfig()
 end)
+
 
 --------------------------------------------------
 -- TOP BUTTONS
@@ -368,26 +445,70 @@ end)
 
 task.spawn(function()
 	while true do
-		if StarsEnabled then
-			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-			local folder = workspace:FindFirstChild("ActiveStars")
-			if hrp and folder then
-				for _,star in ipairs(folder:GetChildren()) do
-					local part = star:IsA("BasePart") and star or star:FindFirstChildWhichIsA("BasePart")
-					if part then
-						hrp.CFrame = part.CFrame * CFrame.new(0,4,0)
+		if TpAllEnabled then
+			local myChar = LocalPlayer.Character
+			local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+			if myHRP then
+				for _, player in ipairs(Players:GetPlayers()) do
+					if player ~= LocalPlayer then
+						local char = player.Character
+						local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+						if hrp then
+							myHRP.CFrame = hrp.CFrame * CFrame.new(0,0,-2)
+							task.wait(0.1)
+						end
 					end
-					task.wait(0.1)
 				end
 			end
-
-			local chest = workspace:FindFirstChild("Chest")
-			if chest and hrp then
-				hrp.CFrame = chest.CFrame * CFrame.new(0,4,0)
-			end
 		end
-		task.wait(0.1)
+		task.wait(0.05)
 	end
+end)
+
+-- CONFIG ADD
+local function refreshUI()
+	AuraBtn.Text = KillauraEnabled and "AURA ON" or "AURA OFF"
+	AuraBtn.BackgroundColor3 = KillauraEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+
+	SpeedBtn.Text = SpeedEnabled and "SPEED ON" or "SPEED OFF"
+	SpeedBtn.BackgroundColor3 = SpeedEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+	SpeedBox.Text = tostring(SpeedValue)
+
+	StarsBtn.Text = StarsEnabled and "STARS ON" or "STARS OFF"
+	StarsBtn.BackgroundColor3 = StarsEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+
+	AVBtn.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
+	AVBtn.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+
+	TpAllBtn.Text = TpAllEnabled and "TP ALL ON" or "TP ALL OFF"
+	TpAllBtn.BackgroundColor3 = TpAllEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+end
+
+loadConfig()
+refreshUI()
+if SpeedEnabled then
+	LocalPlayer.CharacterAdded:Wait()
+	local hum = LocalPlayer.Character:WaitForChild("Humanoid")
+	hum.WalkSpeed = SpeedValue
+end
+
+-- AUTO RESET ONCE AFTER FULL LOAD
+task.spawn(function()
+	-- wait for player + first character
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local hum = LocalPlayer.Character:WaitForChild("Humanoid")
+
+	-- ensure everything is fully loaded
+	task.wait(2)
+
+	-- prevent running more than once (per execution)
+	
+	if getgenv()._DidAutoReset then return end
+	getgenv()._DidAutoReset = true
+	-- reset character
+	hum.Health = 0
 end)
 
 -- TP ALL LOOP

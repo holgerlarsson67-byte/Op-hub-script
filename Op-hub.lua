@@ -38,7 +38,7 @@ if not ok then return end
 if cfg.AutoExecute ~= true then return end
 
 -- load main script
-loadstring(game:HttpGet("YOUR_SCRIPT_URL_HERE"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/holgerlarsson67-byte/Op-hub-script/refs/heads/main/Op-hub.lua"))()
 ]])
 end
 
@@ -55,7 +55,7 @@ local SpeedValue = 16
 local StarsEnabled = false
 local AntiVotekickEnabled = false
 local Rejoining = false
-local AutoExecute = true
+local AutoExecute = false
 -- CONFIG ADD
 local function saveConfig()
 	local data = {
@@ -64,8 +64,8 @@ local function saveConfig()
 		SpeedValue = SpeedValue,
 		StarsEnabled = StarsEnabled,
 		AntiVotekickEnabled = AntiVotekickEnabled,
-		AutoExecute = AutoExecute,
-		TpAllEnabled = TpAllEnabled
+		TpAllEnabled = TpAllEnabled,
+		AutoExecute = AutoExecute
 	}
 
 	writefile(CONFIG_FILE, HttpService:JSONEncode(data))
@@ -85,6 +85,7 @@ local function loadConfig()
 	StarsEnabled = data.StarsEnabled or false
 	AntiVotekickEnabled = data.AntiVotekickEnabled or false
 	TpAllEnabled = data.TpAllEnabled or false
+	AutoExecute = data.AutoExecute or false
 end
 
 -- KILLAURA BLACKLIST
@@ -344,7 +345,7 @@ AVBtn.MouseButton1Click:Connect(function()
 	AntiVotekickEnabled = not AntiVotekickEnabled
 	AVBtn.Text = AntiVotekickEnabled and "AV ON" or "AV OFF"
 	AVBtn.BackgroundColor3 = AntiVotekickEnabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
-	saveconfig()
+	saveConfig()
 end)
 
 local function rejoinServer()
@@ -365,6 +366,11 @@ for _,p in ipairs(Players:GetPlayers()) do
 	if p ~= LocalPlayer then hookChat(p) end
 end
 Players.PlayerAdded:Connect(hookChat)
+
+
+
+
+	
 
 
 
@@ -435,6 +441,30 @@ end)
 
 task.spawn(function()
 	while true do
+		if StarsEnabled then
+			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			local folder = workspace:FindFirstChild("ActiveStars")
+			if hrp and folder then
+				for _,star in ipairs(folder:GetChildren()) do
+					local part = star:IsA("BasePart") and star or star:FindFirstChildWhichIsA("BasePart")
+					if part then
+						hrp.CFrame = part.CFrame * CFrame.new(0,4,0)
+					end
+					task.wait(0.1)
+				end
+			end
+
+			local chest = workspace:FindFirstChild("Chest")
+			if chest and hrp then
+				hrp.CFrame = chest.CFrame * CFrame.new(0,4,0)
+			end
+		end
+		task.wait(0.1)
+	end
+end)
+
+task.spawn(function()
+	while true do
 		if SpeedEnabled and LocalPlayer.Character then
 			local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
 			if hum then hum.WalkSpeed = SpeedValue end
@@ -487,6 +517,14 @@ local function refreshUI()
 end
 
 loadConfig()
+-- ALWAYS disable autoexec on script load
+if Rejoining and isfile("AutoExec/enable.lua") then
+	delfile("AutoExec/enable.lua")
+end
+
+TpAllEnabled = false
+
+
 refreshUI()
 if SpeedEnabled then
 	LocalPlayer.CharacterAdded:Wait()
@@ -504,12 +542,15 @@ task.spawn(function()
 	task.wait(2)
 
 	-- prevent running more than once (per execution)
-	
 	if getgenv()._DidAutoReset then return end
 	getgenv()._DidAutoReset = true
+
 	-- reset character
 	hum.Health = 0
 end)
+
+AutoExecute = false
+saveConfig()
 
 -- TP ALL LOOP
 task.spawn(function()
@@ -526,12 +567,11 @@ task.spawn(function()
 
 						if hrp then
 							myHRP.CFrame = hrp.CFrame * CFrame.new(0,0,-2)
-							task.wait(0.1)
 						end
 					end
 				end
 			end
 		end
-		task.wait(0.05)
+	task.wait(0.05)
 	end
 end)

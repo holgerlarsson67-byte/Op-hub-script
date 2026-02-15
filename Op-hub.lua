@@ -517,12 +517,8 @@ local function refreshUI()
 end
 
 loadConfig()
--- ALWAYS disable autoexec on script load
-if Rejoining and isfile("AutoExec/enable.lua") then
-	delfile("AutoExec/enable.lua")
-end
 
-TpAllEnabled = false
+
 
 
 refreshUI()

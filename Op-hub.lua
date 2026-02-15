@@ -57,7 +57,6 @@ local AntiVotekickEnabled = false
 local Rejoining = false
 local AutoExecute = false
 local AntiRagdollEnabled = false
-
 -- CONFIG ADD
 local function saveConfig()
 	local data = {
@@ -67,7 +66,7 @@ local function saveConfig()
 		StarsEnabled = StarsEnabled,
 		AntiVotekickEnabled = AntiVotekickEnabled,
 		TpAllEnabled = TpAllEnabled,
-		AutoExecute = AutoExecute
+		AutoExecute = AutoExecute,
 		AntiRagdollEnabled = AntiRagdollEnabled,
 	}
 

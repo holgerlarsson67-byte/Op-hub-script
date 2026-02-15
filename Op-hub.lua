@@ -42,6 +42,27 @@ local Rejoining = false
 local AutoExecute = false
 local AntiRagdollEnabled = false
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local DashPadsFolder = workspace:WaitForChild("DashPads")
+
+local function isTouchingDashPad()
+	local character = LocalPlayer.Character
+	if not character then return false end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+
+	for _, part in ipairs(hrp:GetTouchingParts()) do
+		if part:IsDescendantOf(DashPadsFolder) then
+			return true
+		end
+	end
+
+	return false
+end
+
 local function disableRagdollRemotes()
 	local serverRemotes = ReplicatedStorage:FindFirstChild("Remotes")
 		and ReplicatedStorage.Remotes:FindFirstChild("Server")
@@ -514,6 +535,18 @@ task.spawn(function()
 					EatSkewer:FireServer(p)
 				end
 			end
+		end
+		task.wait(0.05)
+	end
+end)
+
+task.spawn(function()
+	while true do
+	    if isTouchingDashPad() and AntiRagdollEnabled then
+	    EnableRagdollRemotes()
+	    task.wait(0.5)
+	    disableRagdillRemotes()
+	    print("Touching DashPad")
 		end
 		task.wait(0.05)
 	end

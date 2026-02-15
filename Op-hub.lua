@@ -67,7 +67,7 @@ local function saveConfig()
 		AntiVotekickEnabled = AntiVotekickEnabled,
 		TpAllEnabled = TpAllEnabled,
 		AutoExecute = AutoExecute,
-		AntiRagdollEnabled = AntiRagdollEnabled,
+		AntiRagdollEnabled = AntiRagdollEnabled
 	}
 
 	writefile(CONFIG_FILE, HttpService:JSONEncode(data))

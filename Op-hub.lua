@@ -1,3 +1,5 @@
+
+
 -- SERVICES (FIXED ORDER)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,39 +10,21 @@ local TextChatService = game:GetService("TextChatService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+
+
 -- CONFIG ADD
 local HttpService = game:GetService("HttpService")
-local CONFIG_FOLDER = "MyScript"
+local CONFIG_FOLDER = "Workspace/MyScript"
 local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
 
-if not isfolder(CONFIG_FOLDER) then
-	makefolder(CONFIG_FOLDER)
-end
-
--- 👇 PUT AUTOEXEC CREATION CODE HERE
-if not isfolder("AutoExec") then
-	makefolder("AutoExec")
-end
-
-if not isfile("AutoExec/my_autoexec.lua") then
-	writefile("AutoExec/my_autoexec.lua", [[
-local HttpService = game:GetService("HttpService")
-
-local CONFIG_FILE = "MyScript/config.json"
-if not isfile(CONFIG_FILE) then return end
-
-local ok, cfg = pcall(function()
-	return HttpService:JSONDecode(readfile(CONFIG_FILE))
+pcall(function()
+	if not isfolder(CONFIG_FOLDER) then
+		makefolder(CONFIG_FOLDER)
+	end
 end)
-if not ok then return end
 
--- only run if config allows it
-if cfg.AutoExecute ~= true then return end
 
--- load main script
-loadstring(game:HttpGet("https://raw.githubusercontent.com/holgerlarsson67-byte/Op-hub-script/refs/heads/main/Op-hub.lua"))()
-]])
-end
+
 
 -- REMOTES
 local Remotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Client")
@@ -56,6 +40,31 @@ local StarsEnabled = false
 local AntiVotekickEnabled = false
 local Rejoining = false
 local AutoExecute = false
+local AntiRagdollEnabled = false
+
+local function disableRagdollRemotes()
+	local serverRemotes = ReplicatedStorage:FindFirstChild("Remotes")
+		and ReplicatedStorage.Remotes:FindFirstChild("Server")
+
+	if not serverRemotes then return end
+
+	for _,name in pairs({"RagdollPlayer","UnragdollPlayer","ChangeRootVelocity"}) do
+		local r = serverRemotes:FindFirstChild(name)
+		if r and r:IsA("RemoteEvent") then
+			for _,c in pairs(getconnections(r.OnClientEvent)) do
+				c:Disable()
+			end
+		end
+	end
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(1)
+	if AntiRagdollEnabled then
+		disableRagdollRemotes()
+	end
+end)
+
 -- CONFIG ADD
 local function saveConfig()
 	local data = {
@@ -65,7 +74,9 @@ local function saveConfig()
 		StarsEnabled = StarsEnabled,
 		AntiVotekickEnabled = AntiVotekickEnabled,
 		TpAllEnabled = TpAllEnabled,
-		AutoExecute = AutoExecute
+		AutoExecute = AutoExecute,
+		AntiRagdollEnabled = AntiRagdollEnabled,
+
 	}
 
 	writefile(CONFIG_FILE, HttpService:JSONEncode(data))
@@ -96,9 +107,6 @@ local KillauraBlacklist = {
 	["vikingerik14"] = true,
 	["ggogogogo18"] = true
 }
-
-
-
 
 
 --------------------------------------------------
@@ -399,6 +407,33 @@ TpAllBtn.MouseButton1Click:Connect(function()
 	saveConfig()
 end)
 
+--------------------------------------------------
+-- Anti Ragdoll (AR)
+--------------------------------------------------
+local ARFrame = panel(UDim2.new(0,120,0,70), UDim2.new(0.75,0,0.15,0))
+
+local ARBtn = Instance.new("TextButton", ARFrame)
+ARBtn.Size = UDim2.new(1,-10,1,-10)
+ARBtn.Position = UDim2.new(0,5,0,5)
+ARBtn.Text = "AR OFF"
+ARBtn.TextScaled = true
+ARBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+ARBtn.TextColor3 = Color3.new(1,1,1)
+
+ARBtn.MouseButton1Click:Connect(function()
+	AntiRagdollEnabled = not AntiRagdollEnabled
+
+	ARBtn.Text = AntiRagdollEnabled and "AR ON" or "AR OFF"
+	ARBtn.BackgroundColor3 =
+		AntiRagdollEnabled and Color3.fromRGB(0,170,0)
+		or Color3.fromRGB(170,0,0)
+
+	if AntiRagdollEnabled then
+		disableRagdollRemotes()
+	end
+
+	saveConfig()
+end)
 
 --------------------------------------------------
 -- TOP BUTTONS
@@ -409,7 +444,11 @@ local StarsTop = topButton("STARS",175)
 local AVTop = topButton("AV",345)
 local TpTop = topButton("TP",260)
 local TpAllTop = topButton("TPALL", 430)
+local ARTop = topButton("AR", 515)
 
+ARTop.MouseButton1Click:Connect(function()
+	ARFrame.Visible = not ARFrame.Visible
+end)
 
 TpAllTop.MouseButton1Click:Connect(function()
 	TpAllFrame.Visible = not TpAllFrame.Visible
@@ -427,8 +466,6 @@ SpeedTop.MouseButton1Click:Connect(function() SpeedFrame.Visible = not SpeedFram
 StarsTop.MouseButton1Click:Connect(function() StarsFrame.Visible = not StarsFrame.Visible end)
 
 AVTop.MouseButton1Click:Connect(function() AVFrame.Visible = not AVFrame.Visible end)
-
-
 
 --------------------------------------------------
 -- LOOPS
@@ -501,6 +538,7 @@ task.spawn(function()
 				end
 			end
 		end
+		print()
 		task.wait(0.05)
 	end
 end)
@@ -525,7 +563,7 @@ local function refreshUI()
 end
 
 loadConfig()
-
+-- ALWAYS disable autoexec on script load
 
 
 
@@ -536,7 +574,10 @@ if SpeedEnabled then
 	hum.WalkSpeed = SpeedValue
 end
 
-
+ARBtn.Text = AntiRagdollEnabled and "AR ON" or "AR OFF"
+ARBtn.BackgroundColor3 =
+	AntiRagdollEnabled and Color3.fromRGB(0,170,0)
+	or Color3.fromRGB(170,0,0)
 
 -- AUTO RESET ONCE AFTER FULL LOAD
 task.spawn(function()
@@ -555,8 +596,17 @@ task.spawn(function()
 	hum.Health = 0
 end)
 
-AutoExecute = false
+
 saveConfig()
+-- anti ragdoll 
+task.spawn(function()
+	while true do
+		if AntiRagdollEnabled then
+			applyAntiRagdoll()
+		end
+		task.wait(0.2)
+	end
+end)
 
 -- TP ALL LOOP
 task.spawn(function()

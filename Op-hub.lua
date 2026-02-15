@@ -56,7 +56,6 @@ local StarsEnabled = false
 local AntiVotekickEnabled = false
 local Rejoining = false
 local AutoExecute = false
-local AntiRagdollEnabled = false
 -- CONFIG ADD
 local function saveConfig()
 	local data = {

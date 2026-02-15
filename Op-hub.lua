@@ -66,8 +66,7 @@ local function saveConfig()
 		StarsEnabled = StarsEnabled,
 		AntiVotekickEnabled = AntiVotekickEnabled,
 		TpAllEnabled = TpAllEnabled,
-		AutoExecute = AutoExecute,
-		AntiRagdollEnabled = AntiRagdollEnabled
+		AutoExecute = AutoExecute
 	}
 
 	writefile(CONFIG_FILE, HttpService:JSONEncode(data))
@@ -99,30 +98,9 @@ local KillauraBlacklist = {
 	["ggogogogo18"] = true
 }
 
-local function applyAntiRagdoll()
-	local char = LocalPlayer.Character
-	if not char then return end
 
-	local hum = char:FindFirstChild("Humanoid")
-	if not hum then return end
 
-	-- Disable ragdoll states
-	hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-	hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 
-	-- Force recover if ragdolled
-	if hum:GetState() == Enum.HumanoidStateType.Physics then
-		hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-	end
-end
-
--- Reapply on respawn
-LocalPlayer.CharacterAdded:Connect(function()
-	task.wait(1)
-	if AntiRagdollEnabled then
-		applyAntiRagdoll()
-	end
-end)
 
 --------------------------------------------------
 -- SCREEN GUI
@@ -422,29 +400,6 @@ TpAllBtn.MouseButton1Click:Connect(function()
 	saveConfig()
 end)
 
-local ARFrame = panel(UDim2.new(0,120,0,70), UDim2.new(0.75,0,0.15,0))
-
-local ARBtn = Instance.new("TextButton", ARFrame)
-ARBtn.Size = UDim2.new(1,-10,1,-10)
-ARBtn.Position = UDim2.new(0,5,0,5)
-ARBtn.Text = "AR OFF"
-ARBtn.TextScaled = true
-ARBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
-ARBtn.TextColor3 = Color3.new(1,1,1)
-
-ARBtn.MouseButton1Click:Connect(function()
-	AntiRagdollEnabled = not AntiRagdollEnabled
-	ARBtn.Text = AntiRagdollEnabled and "AR ON" or "AR OFF"
-	ARBtn.BackgroundColor3 =
-		AntiRagdollEnabled and Color3.fromRGB(0,170,0)
-		or Color3.fromRGB(170,0,0)
-
-	if AntiRagdollEnabled then
-		applyAntiRagdoll()
-	end
-
-	saveConfig()
-end)
 
 --------------------------------------------------
 -- TOP BUTTONS
@@ -455,7 +410,7 @@ local StarsTop = topButton("STARS",175)
 local AVTop = topButton("AV",345)
 local TpTop = topButton("TP",260)
 local TpAllTop = topButton("TPALL", 430)
-local ARTop = topButton("AR", 515)
+
 
 TpAllTop.MouseButton1Click:Connect(function()
 	TpAllFrame.Visible = not TpAllFrame.Visible
@@ -474,9 +429,7 @@ StarsTop.MouseButton1Click:Connect(function() StarsFrame.Visible = not StarsFram
 
 AVTop.MouseButton1Click:Connect(function() AVFrame.Visible = not AVFrame.Visible end)
 
-ARTop.MouseButton1Click:Connect(function()
-	ARFrame.Visible = not ARFrame.Visible
-end)
+
 
 --------------------------------------------------
 -- LOOPS
@@ -584,14 +537,7 @@ if SpeedEnabled then
 	hum.WalkSpeed = SpeedValue
 end
 
-task.spawn(function()
-	while true do
-		if AntiRagdollEnabled then
-			applyAntiRagdoll()
-		end
-		task.wait(0.2)
-	end
-end)
+
 
 -- AUTO RESET ONCE AFTER FULL LOAD
 task.spawn(function()

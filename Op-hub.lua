@@ -58,6 +58,21 @@ local function disableRagdollRemotes()
 	end
 end
 
+local function EnableRagdollRemotes()
+	local serverRemotes = ReplicatedStorage:FindFirstChild("Remotes")
+		and ReplicatedStorage.Remotes:FindFirstChild("Server")
+
+	if not serverRemotes then return end
+
+	for _,name in pairs({"RagdollPlayer","UnragdollPlayer","ChangeRootVelocity"}) do
+		local r = serverRemotes:FindFirstChild(name)
+		if r and r:IsA("RemoteEvent") then
+			for _,c in pairs(getconnections(r.OnClientEvent)) do
+				c:Enable()
+			end
+		end
+	end
+end
 LocalPlayer.CharacterAdded:Connect(function()
 	task.wait(1)
 	if AntiRagdollEnabled then
@@ -430,8 +445,10 @@ ARBtn.MouseButton1Click:Connect(function()
 
 	if AntiRagdollEnabled then
 		disableRagdollRemotes()
+	    else
+        EnableRagdollRemotes()
 	end
-
+		
 	saveConfig()
 end)
 
